@@ -13,8 +13,10 @@ import FormGroup from '@mui/material/FormGroup';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import Grid from '@mui/material/Unstable_Grid2';
+import { useAppSelector } from '@/hooks/hooks';
 
 export function Notifications(): React.JSX.Element {
+  const { admin } = useAppSelector((state) => state.admin);
   return (
     <form
       onSubmit={(event) => {
@@ -22,9 +24,10 @@ export function Notifications(): React.JSX.Element {
       }}
     >
       <Card>
-        <CardHeader subheader="Manage the notifications" title="Notifications" />
+        <CardHeader subheader={admin.role} title="Your Role" />
+        <CardHeader subheader={admin.isBlock ? 'Block' : 'None'} title="Your Block Status" />
         <Divider />
-        <CardContent>
+        {/* <CardContent>
           <Grid container spacing={6} wrap="wrap">
             <Grid md={4} sm={6} xs={12}>
               <Stack spacing={1}>
@@ -45,7 +48,7 @@ export function Notifications(): React.JSX.Element {
               </Stack>
             </Grid>
           </Grid>
-        </CardContent>
+        </CardContent> */}
         <Divider />
         <CardActions sx={{ justifyContent: 'flex-end' }}>
           <Button variant="contained">Save changes</Button>

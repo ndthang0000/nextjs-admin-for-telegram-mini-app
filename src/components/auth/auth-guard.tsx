@@ -6,7 +6,9 @@ import Alert from '@mui/material/Alert';
 
 import { paths } from '@/paths';
 import { logger } from '@/lib/default-logger';
-import { useUser } from '@/hooks/use-user';
+import { useAppDispatch, useAppSelector } from '@/hooks/hooks';
+import { setAdmin } from '@/redux/slice/admin-slice';
+import axiosInstance from '@/lib/axios-instance';
 
 export interface AuthGuardProps {
   children: React.ReactNode;
@@ -14,41 +16,42 @@ export interface AuthGuardProps {
 
 export function AuthGuard({ children }: AuthGuardProps): React.JSX.Element | null {
   const router = useRouter();
-  const { user, error, isLoading } = useUser();
-  const [isChecking, setIsChecking] = React.useState<boolean>(true);
+  const dispatch = useAppDispatch();
+  const { admin, isLoading } = useAppSelector((state) => state.admin);
 
   const checkPermissions = async (): Promise<void> => {
-    if (isLoading) {
-      return;
+    if (!admin.email) {
+      const token = localStorage.getItem('token');
+      if (token) {
+        try {
+          const checkToken = await axiosInstance.get('/admin/auth/check-token')
+          if (checkToken.status) {
+            dispatch(setAdmin(checkToken.data));
+          }
+        } catch (error) {
+          router.push(paths.auth.signIn);
+        }
+      }
+      else {
+        logger.debug('[AuthGuard]: User is not logged in, redirecting to sign in');
+        router.push(paths.auth.signIn);
+        return;
+      }
     }
 
-    if (error) {
-      setIsChecking(false);
-      return;
-    }
-
-    if (!user) {
-      logger.debug('[AuthGuard]: User is not logged in, redirecting to sign in');
-      router.replace(paths.auth.signIn);
-      return;
-    }
-
-    setIsChecking(false);
   };
 
   React.useEffect(() => {
     checkPermissions().catch(() => {
-      // noop
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- Expected
-  }, [user, error, isLoading]);
+  }, [admin.email]);
 
-  if (isChecking) {
-    return null;
+  if (isLoading) {
+    return <Alert color="info">Loading...</Alert>;
   }
 
-  if (error) {
-    return <Alert color="error">{error}</Alert>;
+  if (!admin.email) {
+    return <Alert color="error">Loi</Alert>;
   }
 
   return <React.Fragment>{children}</React.Fragment>;

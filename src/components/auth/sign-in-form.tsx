@@ -19,8 +19,9 @@ import { Controller, useForm } from 'react-hook-form';
 import { z as zod } from 'zod';
 
 import { paths } from '@/paths';
-import { authClient } from '@/lib/auth/client';
-import { useUser } from '@/hooks/use-user';
+import { useLoginMutation } from '@/redux/services/admin-slice';
+import { useAppDispatch } from '@/hooks/hooks';
+import { setAdmin } from '@/redux/slice/admin-slice';
 
 const schema = zod.object({
   email: zod.string().min(1, { message: 'Email is required' }).email(),
@@ -29,16 +30,21 @@ const schema = zod.object({
 
 type Values = zod.infer<typeof schema>;
 
-const defaultValues = { email: 'sofia@devias.io', password: 'Secret1' } satisfies Values;
+const defaultValues = { email: 'admin1@pitech.com', password: '123123123' } satisfies Values;
 
 export function SignInForm(): React.JSX.Element {
+
+  const [loginAction, { isLoading }] = useLoginMutation();
+
+  const dispatch = useAppDispatch();
+
   const router = useRouter();
 
-  const { checkSession } = useUser();
+  // const { checkSession, setUser } = useUser();
 
   const [showPassword, setShowPassword] = React.useState<boolean>();
 
-  const [isPending, setIsPending] = React.useState<boolean>(false);
+  // const [isPending, setIsPending] = React.useState<boolean>(false);
 
   const {
     control,
@@ -49,36 +55,49 @@ export function SignInForm(): React.JSX.Element {
 
   const onSubmit = React.useCallback(
     async (values: Values): Promise<void> => {
-      setIsPending(true);
-
-      const { error } = await authClient.signInWithPassword(values);
-
-      if (error) {
+      // setIsPending(true);
+      try {
+        const response = await loginAction({ email: values.email, password: values.password }).unwrap();
+        if (!response.status) {
+          setError('root', { type: 'server', message: response.message });
+          // setIsPending(false);
+          return;
+        }
+        localStorage.setItem('token', response.data.tokens.access.token);
+        dispatch(setAdmin(response.data.manager));
+        router.push(paths.dashboard.overview);
+      } catch (error: any) {
         setError('root', { type: 'server', message: error });
-        setIsPending(false);
-        return;
       }
 
+      // const { error, user } = await authClient.signInWithPassword(values);
+      // setUser(user);
+      // if (error) {
+      //   setError('root', { type: 'server', message: error });
+      //   setIsPending(false);
+      //   return;
+      // }
+
       // Refresh the auth state
-      await checkSession?.();
+      // await checkSession?.();
 
       // UserProvider, for this case, will not refresh the router
       // After refresh, GuestGuard will handle the redirect
-      router.refresh();
+      // router.refresh();
     },
-    [checkSession, router, setError]
+    [router, setError]
   );
 
   return (
     <Stack spacing={4}>
       <Stack spacing={1}>
         <Typography variant="h4">Sign in</Typography>
-        <Typography color="text.secondary" variant="body2">
+        {/* <Typography color="text.secondary" variant="body2">
           Don&apos;t have an account?{' '}
           <Link component={RouterLink} href={paths.auth.signUp} underline="hover" variant="subtitle2">
             Sign up
           </Link>
-        </Typography>
+        </Typography> */}
       </Stack>
       <form onSubmit={handleSubmit(onSubmit)}>
         <Stack spacing={2}>
@@ -133,12 +152,12 @@ export function SignInForm(): React.JSX.Element {
             </Link>
           </div>
           {errors.root ? <Alert color="error">{errors.root.message}</Alert> : null}
-          <Button disabled={isPending} type="submit" variant="contained">
+          <Button disabled={isLoading} type="submit" variant="contained">
             Sign in
           </Button>
         </Stack>
       </form>
-      <Alert color="warning">
+      {/* <Alert color="warning">
         Use{' '}
         <Typography component="span" sx={{ fontWeight: 700 }} variant="inherit">
           sofia@devias.io
@@ -147,7 +166,7 @@ export function SignInForm(): React.JSX.Element {
         <Typography component="span" sx={{ fontWeight: 700 }} variant="inherit">
           Secret1
         </Typography>
-      </Alert>
+      </Alert> */}
     </Stack>
   );
 }
